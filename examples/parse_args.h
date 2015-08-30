@@ -18,6 +18,8 @@
 
 */
 
+int noheader;
+int headeronly;
 extern int verbose;
 // input / output
 extern int usejack;
@@ -103,6 +105,8 @@ void usage (FILE * stream, int exit_code)
 #ifdef PROG_HAS_JACK
       "       -j      --jack             use Jack\n"
 #endif
+      "       -n      --noheader        don't include header\n"
+      "       -e      --headeronly      output header and exit\n"
       "       -v      --verbose          be verbose\n"
       "       -h      --help             display this message\n"
       );
@@ -130,6 +134,8 @@ parse_args (int argc, char **argv)
     "s:mf";
   int next_option;
   struct option long_options[] = {
+    {"noheader",              0, NULL, 'n'},
+    {"headeronly",            0, NULL, 'e'},
     {"help",                  0, NULL, 'h'},
     {"verbose",               0, NULL, 'v'},
     {"input",                 1, NULL, 'i'},
@@ -165,6 +171,12 @@ parse_args (int argc, char **argv)
   do {
     next_option = getopt_long (argc, argv, options, long_options, NULL);
     switch (next_option) {
+      case 'n':                /* no-header */
+        noheader = 1;
+        break;
+      case 'e':                /* header-only */
+        headeronly = 1;
+        break;
       case 'h':                /* help */
         usage (stdout, 0);
         return -1;

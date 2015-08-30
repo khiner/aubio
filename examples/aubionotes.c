@@ -87,7 +87,7 @@ void process_block (fvec_t *ibuf, fvec_t *obuf)
         newnote = get_note(note_buffer, note_buffer2);
         curnote = newnote;
         /* get and send new one */
-        if (curnote>45){
+        if (curnote > 45){
           send_noteon(curnote,127+(int)floor(curlevel));
         }
       }
@@ -124,17 +124,11 @@ get_note (fvec_t * note_buffer, fvec_t * note_buffer2)
 int main(int argc, char **argv) {
   examples_common_init(argc,argv);
 
-  verbmsg ("using source: %s at %dHz\n", source_uri, samplerate);
+  if (!noheader)
+    outmsg("%s::%d::%d::%1.2f\n", source_uri, samplerate, size_of_file(source_uri), pitch_tolerance);
 
-  verbmsg ("onset method: %s, ", onset_method);
-  verbmsg ("buffer_size: %d, ", buffer_size);
-  verbmsg ("hop_size: %d, ", hop_size);
-  verbmsg ("threshold: %f\n", onset_threshold);
-
-  verbmsg ("pitch method: %s, ", pitch_method);
-  verbmsg ("buffer_size: %d, ", buffer_size * 4);
-  verbmsg ("hop_size: %d, ", hop_size);
-  verbmsg ("tolerance: %f\n", pitch_tolerance);
+  if (headeronly)
+    return 0;
 
   o = new_aubio_onset (onset_method, buffer_size, hop_size, samplerate);
   if (onset_threshold != 0.) aubio_onset_set_threshold (o, onset_threshold);

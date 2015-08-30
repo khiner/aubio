@@ -25,6 +25,9 @@
 #include <unistd.h>
 #include <math.h>               /* for isfinite */
 #include <string.h>             /* for strcmp */
+#include <time.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <aubio.h>
 #include "config.h"
 
@@ -50,7 +53,7 @@
 
 typedef void (aubio_print_func_t) (void);
 void send_noteon (int pitch, int velo);
-
+int size_of_file (char *path);
 /** common process function */
 typedef int (*aubio_process_func_t) (fvec_t * input, fvec_t * output);
 

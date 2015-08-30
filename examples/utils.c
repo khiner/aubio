@@ -177,6 +177,8 @@ void examples_common_process (aubio_process_func_t process_func,
   }
 }
 
+int beginNote, beginSamp;
+
 void
 send_noteon (int pitch, int velo)
 {
@@ -198,12 +200,18 @@ send_noteon (int pitch, int velo)
   } else
 #endif
   if (velo == 0) {
-    print_time (blocks * hop_size);
-    outmsg ("\n");
+    if (beginNote != 0) {
+      int endSamp = blocks * hop_size;
+      print_time (endSamp - beginSamp);
+      outmsg ("\n");
+    }
+    beginNote = beginSamp = 0;
   } else {
-    outmsg ("%f\t", mpitch);
-    print_time (blocks * hop_size);
-    outmsg ("\t");
+    beginNote = (int) mpitch;
+    beginSamp = blocks * hop_size;
+    outmsg ("%d,", beginNote);
+    print_time (beginSamp);
+    outmsg (",");
   }
 }
 
@@ -216,4 +224,10 @@ void print_time (uint_t time_in_samples) {
   } else {
     outmsg ("%f", time_in_samples / (float) samplerate);
   }
+}
+
+int size_of_file(char *path) {
+  struct stat attr;
+  stat(path, &attr);
+  return attr.st_size;
 }

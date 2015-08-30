@@ -1,0 +1,113 @@
+#!/usr/bin/env ruby
+
+# Output format:
+# file_path::sample_rate::file_size_bytes::pitch_tolerance
+# ...
+# _
+# MIDI-note-int:file_metadata_index,offset_samp,duration_samp|...
+# ...
+#
+# Example output map file:
+#
+# Sparks/alb/song.mp3::41000::1440880049
+# Garbage/alb/song.mp3::48000::9537415
+# _
+# 0:1,1258,10045|2,20000,1234
+# 1:0,123234,3035
+# ...
+
+require 'shellwords'
+require 'pry'
+
+abort("Usage: ./create_sample_info_map <input_directory> <pitch_precision(default=0.5)>") if ARGV.count < 1
+
+input_file = ARGV.first
+pitch_precision = ARGV.count > 1 ? ARGV[1] : 0.5
+
+puts "pitch_precision: #{pitch_precision}"
+abort("file #{input_file} does not exist!") unless File.exists?(input_file)
+
+original_dir = Dir.pwd
+output_file = original_dir + "/note_to_sample_info_map.txt"
+tmp_file = original_dir + "/tmp"
+
+files_to_map = if File.directory? input_file
+  Dir.chdir input_file
+  input_dir = Dir.pwd
+  music_files = File.join("**", "*.{mp3,wav}")
+  Dir.glob(music_files).collect{ |f| File.absolute_path f }
+else
+  [input_file]
+end
+
+files_to_map.reject!{ |file_to_map| file_to_map['::'] } # song name contains delimiter used in metadata section
+abort("No music files found!") if files_to_map.empty?
+
+metadata_for_file = {}
+note_to_sample_infos = {}
+in_metadata_section = true
+index_for_file = {}
+
+if File.exists?(output_file)
+  File.readlines(output_file).each_with_index do |sample_map_line, index|
+    sample_map_line.strip!
+    if in_metadata_section
+      if sample_map_line == '_'
+        in_metadata_section = false
+        next
+      else
+        file_name, sample_rate, file_length_bytes, existing_pitch_precision = sample_map_line.split('::')
+        metadata_for_file[file_name] = sample_map_line
+        index_for_file[file_name] = index
+      end
+    else
+      note, sample_infos = sample_map_line.split(":")
+      note_to_sample_infos[note.to_i] = sample_infos.split('||')
+    end
+  end
+end
+
+files_to_map.each_with_index do |input_file, file_index|
+  system("aubionotes -l #{pitch_precision} -i #{Shellwords.escape(input_file)} --headeronly > #{tmp_file}")
+  file_metadata = File.readlines(tmp_file).first.strip
+  # if this file is already in the header and hasn't been modified, nothing to do for this song
+  if metadata_for_file[input_file] # file has already been mapped.
+    msg = "#{input_file} already mapped"
+    if metadata_for_file[input_file] == file_metadata
+      puts msg + " but hasn't been modified. Skipping."
+      next
+    else
+      puts msg + " but has been modified or pitch_precision is different. Re-mapping."
+    end
+
+    # file has been modified since last time it was mapped.  remove all file metadata and associated sample_info
+    metadata_for_file.delete(input_file)
+    note_to_sample_infos.values.each do |sample_infos|
+      sample_infos.reject! do |sample_info|
+        sample_info.split(',').first == file_index
+      end
+    end
+  end
+
+  # add metadata and sample_info
+  system "aubionotes -l #{pitch_precision} --time-format=samples -i #{Shellwords.escape(input_file)} --noheader > #{tmp_file}"
+  note_lines = File.readlines(tmp_file)
+
+  metadata_for_file[input_file] = file_metadata
+  note_lines.each do |note_line|
+    note, sample_offset, sample_duration = note_line.strip.split(',')
+    note = note.to_i
+    note_to_sample_infos[note] ||= []
+    note_to_sample_infos[note] << [file_index, sample_offset, sample_duration].join(',')
+  end
+end
+
+File.open(output_file, 'w') do |file|
+  file.puts metadata_for_file.values
+  file.puts '_'
+  note_to_sample_infos.keys.sort.each do |note|
+    file.puts("#{note}:#{note_to_sample_infos[note].join('|')}")
+  end
+end
+
+File.delete(tmp_file)
