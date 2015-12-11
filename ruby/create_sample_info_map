@@ -34,7 +34,7 @@ tmp_file = original_dir + "/tmp"
 files_to_map = if File.directory? input_file
   Dir.chdir input_file
   input_dir = Dir.pwd
-  music_files = File.join("**", "*.{mp3,wav}")
+  music_files = File.join("**", "*.{mp3,wav,aif}")
   Dir.glob(music_files).collect{ |f| File.absolute_path f }
 else
   [input_file]
@@ -67,9 +67,12 @@ if File.exists?(output_file)
   end
 end
 
-files_to_map.each_with_index do |input_file, file_index|
+files_to_map.each do |input_file|
+  index_for_file[input_file] ||= index_for_file.size
   system("aubionotes -l #{pitch_precision} -i #{Shellwords.escape(input_file)} --headeronly > #{tmp_file}")
-  file_metadata = File.readlines(tmp_file).first.strip
+  file_metadata = File.readlines(tmp_file).first
+  next unless file_metadata
+  file_metadata.strip!
   # if this file is already in the header and hasn't been modified, nothing to do for this song
   if metadata_for_file[input_file] # file has already been mapped.
     msg = "#{input_file} already mapped"
@@ -84,7 +87,7 @@ files_to_map.each_with_index do |input_file, file_index|
     metadata_for_file.delete(input_file)
     note_to_sample_infos.values.each do |sample_infos|
       sample_infos.reject! do |sample_info|
-        sample_info.split(',').first == file_index
+        sample_info.split(',').first == index_for_file[input_file]
       end
     end
   end
@@ -98,7 +101,7 @@ files_to_map.each_with_index do |input_file, file_index|
     note, sample_offset, sample_duration = note_line.strip.split(',')
     note = note.to_i
     note_to_sample_infos[note] ||= []
-    note_to_sample_infos[note] << [file_index, sample_offset, sample_duration].join(',')
+    note_to_sample_infos[note] << [index_for_file[input_file], sample_offset, sample_duration].join(',')
   end
 end
 
