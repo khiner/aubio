@@ -17,7 +17,6 @@
 # ...
 
 require 'shellwords'
-require 'pry'
 
 abort("Usage: ./create_sample_info_map <input_directory> <pitch_precision(default=0.5)>") if ARGV.count < 1
 
