@@ -18,12 +18,13 @@
 
 require 'shellwords'
 
-abort("Usage: ./create_sample_info_map <input_directory> <pitch_precision(default=0.5)>") if ARGV.count < 1
+abort("Usage: ./create_sample_info_map <input_directory> <pitch_threshold(default=0.5)>") if ARGV.count < 1
 
 input_file = ARGV.first
-pitch_precision = ARGV.count > 1 ? ARGV[1] : 0.5
+pitch_threshold = ARGV.count > 1 ? ARGV[1].to_f : 0.5
 
-puts "pitch_precision: #{pitch_precision}"
+puts "pitch_threshold: #{pitch_threshold}"
+
 abort("file #{input_file} does not exist!") unless File.exists?(input_file)
 
 original_dir = Dir.pwd
@@ -55,7 +56,7 @@ if File.exists?(output_file)
         in_metadata_section = false
         next
       else
-        file_name, sample_rate, file_length_bytes, existing_pitch_precision = sample_map_line.split('::')
+        file_name, sample_rate, file_length_bytes, existing_pitch_threshold = sample_map_line.split('::')
         metadata_for_file[file_name] = sample_map_line
         index_for_file[file_name] = index
       end
@@ -68,7 +69,7 @@ end
 
 files_to_map.each do |input_file|
   index_for_file[input_file] ||= index_for_file.size
-  system("aubionotes -l #{pitch_precision} -i #{Shellwords.escape(input_file)} --headeronly > #{tmp_file}")
+  system("aubionotes -l #{pitch_threshold} -i #{Shellwords.escape(input_file)} --headeronly > #{tmp_file}")
   file_metadata = File.readlines(tmp_file).first
   next unless file_metadata
   file_metadata.strip!
@@ -79,7 +80,7 @@ files_to_map.each do |input_file|
       puts msg + " but hasn't been modified. Skipping."
       next
     else
-      puts msg + " but has been modified or pitch_precision is different. Re-mapping."
+      puts msg + " but has been modified or pitch_threshold is different. Re-mapping."
     end
 
     # file has been modified since last time it was mapped.  remove all file metadata and associated sample_info
@@ -92,7 +93,7 @@ files_to_map.each do |input_file|
   end
 
   # add metadata and sample_info
-  system "aubionotes -l #{pitch_precision} --time-format=samples -i #{Shellwords.escape(input_file)} --noheader > #{tmp_file}"
+  system "aubionotes -l #{pitch_threshold} --time-format=samples -i #{Shellwords.escape(input_file)} --noheader > #{tmp_file}"
   note_lines = File.readlines(tmp_file)
 
   metadata_for_file[input_file] = file_metadata
